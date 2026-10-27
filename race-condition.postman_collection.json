@@ -1,0 +1,118 @@
+{
+  "info": {
+    "name": "Race Condition - Livro x Revista",
+    "description": "Saldo inicial 100, livro 10, revista 5. Sem race o saldo final é 85.\n\nAs requisições 'Race' resetam o saldo e disparam livro + revista AO MESMO TEMPO (pm.sendRequest em paralelo no pre-request). A resposta mostra o saldo final; veja o Console do Postman para a resposta de cada venda.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/index.php" }
+  ],
+  "item": [
+    {
+      "name": "Race: livro + revista (vulnerável)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const modo = ''; // '' = vulnerável, '-safe' = UPDATE atômico, '-redis' = lock no redis",
+              "const base = pm.collectionVariables.get('baseUrl');",
+              "pm.sendRequest(`${base}?action=reset`, () => {",
+              "    // As duas vendas saem juntas, sem esperar uma pela outra",
+              "    ['book', 'magazine'].forEach(a =>",
+              "        pm.sendRequest(`${base}?action=${a}${modo}`, (err, res) => console.log(a + modo, err || res.text())));",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Saldo final deveria ser 85 (falha = race condition)', () => pm.expect(pm.response.text()).to.include('Saldo atual: 85'));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "{{baseUrl}}" }
+    },
+    {
+      "name": "Race: livro + revista (seguro - UPDATE atômico)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const modo = '-safe'; // '' = vulnerável, '-safe' = UPDATE atômico, '-redis' = lock no redis",
+              "const base = pm.collectionVariables.get('baseUrl');",
+              "pm.sendRequest(`${base}?action=reset`, () => {",
+              "    // As duas vendas saem juntas, sem esperar uma pela outra",
+              "    ['book', 'magazine'].forEach(a =>",
+              "        pm.sendRequest(`${base}?action=${a}${modo}`, (err, res) => console.log(a + modo, err || res.text())));",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Saldo final deveria ser 85 (falha = race condition)', () => pm.expect(pm.response.text()).to.include('Saldo atual: 85'));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "{{baseUrl}}" }
+    },
+    {
+      "name": "Race: livro + revista (lock no Redis)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const modo = '-redis'; // '' = vulnerável, '-safe' = UPDATE atômico, '-redis' = lock no redis",
+              "const base = pm.collectionVariables.get('baseUrl');",
+              "pm.sendRequest(`${base}?action=reset`, () => {",
+              "    // As duas vendas saem juntas, sem esperar uma pela outra",
+              "    ['book', 'magazine'].forEach(a =>",
+              "        pm.sendRequest(`${base}?action=${a}${modo}`, (err, res) => console.log(a + modo, err || res.text())));",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Saldo final deveria ser 85 (falha = race condition)', () => pm.expect(pm.response.text()).to.include('Saldo atual: 85'));"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "{{baseUrl}}" }
+    },
+    {
+      "name": "Consultar saldo",
+      "request": { "method": "GET", "url": "{{baseUrl}}" }
+    },
+    {
+      "name": "Resetar saldo (100)",
+      "request": { "method": "GET", "url": "{{baseUrl}}?action=reset" }
+    },
+    {
+      "name": "Vender livro (vulnerável)",
+      "request": { "method": "GET", "url": "{{baseUrl}}?action=book" }
+    },
+    {
+      "name": "Vender revista (vulnerável)",
+      "request": { "method": "GET", "url": "{{baseUrl}}?action=magazine" }
+    }
+  ]
+}

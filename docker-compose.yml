@@ -1,0 +1,18 @@
+services:
+  app:
+    image: php:8.2-apache
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+    environment:
+      # SQLite dentro do container: lock de arquivo em bind mount do Windows não é confiável
+      DB_PATH: /tmp/data.db
+      REDIS_HOST: redis
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
